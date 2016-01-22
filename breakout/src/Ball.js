@@ -9,7 +9,6 @@ function Ball() {
 inherits(Ball, EventEmitter);
 module.exports = Ball;
 
-
 //▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 Ball.prototype.move = function () {
 	this.x += this.speedX;

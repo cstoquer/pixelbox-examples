@@ -1,9 +1,6 @@
 var Ball   = require('./Ball');
 var Paddle = require('./Paddle');
 
-var ball   = new Ball();
-var paddle = new Paddle();
-
 //▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 function MapItem(x, y, sprite) {
 	this.x = x;
@@ -14,7 +11,6 @@ function MapItem(x, y, sprite) {
 MapItem.prototype.draw = function (texture) {
 	texture.sprite(this.sprite, this.x * 8, this.y * 8);
 };
-
 
 //▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 function Brick(x, y, params, grid) {
@@ -36,7 +32,6 @@ function Map(w, h) {
 	this.height   = 0;
 	this.items    = [];
 	// TODO add flagMap
-	this._dirty   = false;
 	this._texture = new Texture(w * 8, h * 8);
 
 	this._init(w, h);
@@ -58,13 +53,11 @@ Map.prototype._init = function (w, h) {
 Map.prototype.addItem = function (x, y, item) {
 	this.items[x][y] = item;
 	item.draw(this._texture);
-	// this._dirty = true;
 };
 
 Map.prototype.removeItem = function (x, y) {
 	this.items[x][y] = null;
 	this._texture.ctx.clearRect(x * 8, y * 8, 8, 8);
-	// this._dirty = true;
 };
 
 Map.prototype.getItem = function (x, y) {
@@ -83,9 +76,7 @@ Map.prototype._redraw = function () {
 };
 
 Map.prototype.draw = function () {
-	// TODO use cache
-	if (this._dirty) this._redraw();
-	$screen.draw(this._texture); // TODO don't need $screen in next pixelbox version
+	draw(this._texture); // TODO don't need $screen in next pixelbox version
 };
 
 //▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
@@ -93,7 +84,6 @@ function Grid(w, h) {
 	Map.call(this, w, h);
 }
 inherits(Grid, Map);
-
 
 Grid.prototype.checkCollision = function (ball) {
 	if (ball.y > this.height * 8) return;
@@ -140,7 +130,9 @@ Grid.prototype.checkCollision = function (ball) {
 };
 
 //▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
-var grid = new Grid(16, 8);
+var grid   = new Grid(16, 8);
+var ball   = new Ball();
+var paddle = new Paddle();
 
 var level = "A...CBBAABBC...A"
 		  + "....CBA..ABC...."
