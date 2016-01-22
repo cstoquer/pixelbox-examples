@@ -28,9 +28,9 @@ Brick.prototype.hit = function () {
 
 //▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 function Map(w, h) {
-	this.width    = 0;
-	this.height   = 0;
-	this.items    = [];
+	this.width  = 0;
+	this.height = 0;
+	this.items  = [];
 	// TODO add flagMap
 	this._texture = new Texture(w * 8, h * 8);
 
@@ -40,6 +40,7 @@ function Map(w, h) {
 Map.prototype._init = function (w, h) {
 	this.width  = w;
 	this.height = h;
+	this.items  = [];
 
 	for (var x = 0; x < w; x++) {
 		this.items.push([]);
