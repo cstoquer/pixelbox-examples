@@ -10,6 +10,7 @@ inherits(Ball, EventEmitter);
 module.exports = Ball;
 
 
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 Ball.prototype.move = function () {
 	this.x += this.speedX;
 	this.y += this.speedY;
@@ -31,15 +32,17 @@ Ball.prototype.move = function () {
 	}
 };
 
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 Ball.prototype.checkPaddle = function (paddle) {
 	if (this.speedY <= 0) return;
 	if (this.y < 100 || this.y > 103) return;
-	if (this.x >= paddle.x && this.x <= paddle.x + paddle.width) {
+	if (this.x + 8 >= paddle.x && this.x <= paddle.x + paddle.width) {
 		this.y = 100;
 		this.speedY *= -1;
 	}
 };
 
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 Ball.prototype.draw = function () {
 	this.frame += this.speedY * 0.3;
 	if (this.frame < 0) this.frame = 5.9;
