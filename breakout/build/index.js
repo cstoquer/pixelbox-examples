@@ -124,6 +124,272 @@ EventEmitter.prototype.emit = function (evt) {
 	return hadListener;
 };
 },{}],2:[function(require,module,exports){
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+/** Map
+ * @author Cedric Stoquer
+ */
+
+var Texture = require('Texture');
+
+
+var _mapById = {};
+window.getMap = function (name) {
+	return _mapById[name];
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+function MapItem(x, y, sprite, flipH, flipV, flipR, flagA, flagB) {
+	this.x      = ~~x;
+	this.y      = ~~y;
+	this.sprite = ~~sprite;
+	this.flipH  = !!flipH;
+	this.flipV  = !!flipV;
+	this.flipR  = !!flipR;
+	this.flagA  = !!flagA;
+	this.flagB  = !!flagB;
+}
+
+MapItem.prototype.draw = function (texture) {
+	texture.sprite(this.sprite, this.x * 8, this.y * 8, this.flipH, this.flipV, this.flipR);
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+function Map(width, height) {
+	this._name  = '';
+	this.width  = 0;
+	this.height = 0;
+	this.items  = [];
+	this.texture = new Texture(width * 8, height * 8);
+
+	if (width && height) this._init(width, height);
+}
+module.exports = Map;
+
+Map.prototype._isMap = true;
+
+Object.defineProperty(Map.prototype, 'name', {
+	get: function () { return this._name; },
+	set: function (name) {
+		if (this._name && _mapById[this._name] && _mapById[this._name] === this) delete _mapById[this._name];
+		this._name = name;
+		if (name && !_mapById[name]) _mapById[name] = this;
+	}
+});
+
+Map.prototype._init = function (width, height) {
+	this.texture.resize(width * 8, height * 8);
+	this.width  = width;
+	this.height = height;
+	this.items  = [];
+	for (var x = 0; x < width; x++) {
+		this.items.push([]);
+		for (var y = 0; y < height; y++) {
+			this.items[x][y] = null;
+		}
+	}
+};
+
+Map.prototype.resize = function (width, height) {
+	var items = this.items;
+	var w = Math.min(this.width,  width);
+	var h = Math.min(this.height, height);
+	this.texture.resize(width * 8, height * 8);
+	this._init(width, height);
+	for (var x = 0; x < w; x++) {
+	for (var y = 0; y < h; y++) {
+		this.items[x][y] = items[x][y];
+	}}
+	this._redraw();
+	return this;
+};
+
+Map.prototype.set = function (x, y, sprite, flipH, flipV, flipR, flagA, flagB) {
+	if (sprite === null) return this.remove(x, y);
+	if (x < 0 || y < 0 || x >= this.width || y >= this.height) return;
+	var item = this.items[x][y] = new MapItem(x, y, sprite, flipH, flipV, flipR, flagA, flagB);
+	this.texture.ctx.clearRect(x * 8, y * 8, 8, 8);
+	item.draw(this.texture);
+};
+
+Map.prototype.remove = function (x, y) {
+	if (x < 0 || y < 0 || x >= this.width || y >= this.height) return;
+	this.items[x][y] = null;
+	this.texture.ctx.clearRect(x * 8, y * 8, 8, 8);
+};
+
+Map.prototype.get = function (x, y) {
+	if (x < 0 || y < 0 || x >= this.width || y >= this.height) return null;
+	return this.items[x][y];
+};
+
+Map.prototype._redraw = function () {
+	this.texture.clear();
+	for (var x = 0; x < this.width;  x++) {
+	for (var y = 0; y < this.height; y++) {
+		this.items[x][y] && this.items[x][y].draw(this.texture);
+	}}
+};
+
+Map.prototype.draw = function (x, y) {
+	draw(this.texture, x, y);
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+var encode, decode;
+
+(function () {
+	var BASE = "#$%&'()*+,-~/0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}. !";
+	var INVERSE = {};
+	for (var i = 0; i < BASE.length; i++) INVERSE[BASE[i]] = i;
+
+	var LENGTH = BASE.length;
+	var NULL = LENGTH * LENGTH - 1;
+	var DUPL = Math.pow(2, 13);
+	var MAX_DUPL = NULL - DUPL - 1;
+
+	function getCode(value) {
+		var be = ~~(value / LENGTH);
+		var le = value % LENGTH;
+		return BASE[be] + BASE[le];
+	}
+
+	encode = function (arr) {
+		str = '';
+		count = 0;
+		for (var i = 0; i < arr.length; i++) {
+			var value = arr[i];
+			if (value === arr[i + 1] && ++count < MAX_DUPL) continue;
+			if (value === null) value = NULL;
+			str += getCode(value);
+			if (count === MAX_DUPL) count--;
+			if (count !== 0) str += getCode(DUPL + count);
+			count = 0;
+		}
+
+		if (count === MAX_DUPL) count--;
+		if (count !== 0) str += getCode(DUPL + count);
+		return str;
+	}
+
+	decode = function (str) {
+		arr = [];
+		for (var i = 0; i < str.length;) {
+			var be = str[i++];
+			var le = str[i++];
+			value = INVERSE[be] * LENGTH + INVERSE[le];
+			if (value === NULL) {
+				arr.push(null);
+			} else if (value > DUPL) {
+				var count = value - DUPL;
+				var duplicate = arr[arr.length - 1];
+
+				for (var j = 0; j < count; j++) {
+					arr.push(duplicate);
+				}
+			} else {
+				arr.push(value);
+			}
+		}
+		return arr;
+	}
+})();
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+Map.prototype.save = function () {
+	var w = this.width;
+	var h = this.height;
+	var arr = new Array(w * h);
+	for (var x = 0; x < w; x++) {
+	for (var y = 0; y < h; y++) {
+		var item = this.items[x][y];
+		arr[x + y * w] = item ? item.sprite + (item.flipH << 8) + (item.flipV << 9) + (item.flipR << 10) + (item.flagA << 11)  + (item.flagB << 12) : null;
+	}}
+
+	var obj = { w: w, h: h, name: this.name, data: encode(arr) };
+	return obj;
+};
+
+Map.prototype.load = function (obj) {
+	var w = obj.w;
+	var h = obj.h;
+	this._init(w, h);
+	this.name = obj.name || '';
+	var arr = decode(obj.data);
+	for (var x = 0; x < w; x++) {
+	for (var y = 0; y < h; y++) {
+		var d = arr[x + y * w];
+		if (d === null) continue;
+		var sprite =  d & 255;
+		var flipH  = (d >> 8 ) & 1;
+		var flipV  = (d >> 9 ) & 1;
+		var flipR  = (d >> 10) & 1;
+		var flagA  = (d >> 11) & 1;
+		var flagB  = (d >> 12) & 1;
+		this.set(x, y, sprite, flipH, flipV, flipR, flagA, flagB);
+	}}
+
+	this._redraw();
+	return this;
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+Map.prototype.copy = function (map) {
+	var width  = this.width  = map.width;
+	var height = this.height = map.height;
+	this.texture.resize(this.width * 8, this.height * 8);
+	this.items = [];
+	for (var x = 0; x < width; x++) {
+		this.items.push([]);
+		for (var y = 0; y < height; y++) {
+			this.items[x][y] = map.items[x][y];
+		}
+	}
+	this._redraw();
+	return this;
+};
+
+Map.prototype.clone = function () {
+	var map = new Map();
+	map.copy(this);
+	return map;
+};
+
+Map.prototype.clear = function () {
+	for (var x = 0; x < this.width;  x++) {
+	for (var y = 0; y < this.height; y++) {
+		this.items[x][y] = null;
+	}}
+	this.texture.clear();
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+Map.prototype._findNull = function () {
+	var result = [];
+	for (var x = 0; x < this.width;  x++) {
+	for (var y = 0; y < this.height; y++) {
+		if (this.items[x][y] === null) result.push({ x: x, y: y });
+	}}
+	return result;
+};
+
+Map.prototype.find = function (sprite, flagA, flagB) {
+	if (sprite === null) return this._findNull();
+	if (flagA === undefined) flagA = null;
+	if (flagB === undefined) flagB = null;
+	var result = [];
+	for (var x = 0; x < this.width;  x++) {
+	for (var y = 0; y < this.height; y++) {
+		var item = this.items[x][y];
+		if (!item) continue;
+		var isSameFlagA = flagA === null || item.flagA === flagA;
+		var isSameFlagB = flagB === null || item.flagB === flagB;
+		if (item.sprite === sprite && isSameFlagA && isSameFlagB) result.push(item);
+	}}
+	return result;
+};
+
+
+},{"Texture":26}],3:[function(require,module,exports){
 var Transition         = require('./Transition');
 var TransitionRelative = require('./TransitionRelative');
 
@@ -347,7 +613,7 @@ AbstractTween.prototype._validate = function () {
 
 	return true;
 };
-},{"./Transition":17,"./TransitionRelative":18,"./easing":21,"./interpolation":24}],3:[function(require,module,exports){
+},{"./Transition":18,"./TransitionRelative":19,"./easing":22,"./interpolation":25}],4:[function(require,module,exports){
 
 function BriefExtension() {
 	// Local duration of the playable, independent from speed and iterations
@@ -614,7 +880,7 @@ BriefExtension.prototype._moveTo = function (time, dt, overflow) {
 		this._complete(overflow);
 	}
 };
-},{}],4:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 var inherit        = require('./inherit');
 var Playable       = require('./Playable');
 var BriefExtension = require('./BriefExtension');
@@ -629,7 +895,7 @@ BriefPlayable.prototype.constructor = BriefPlayable;
 inherit(BriefPlayable, BriefExtension);
 
 module.exports = BriefPlayable;
-},{"./BriefExtension":3,"./Playable":9,"./inherit":23}],5:[function(require,module,exports){
+},{"./BriefExtension":4,"./Playable":10,"./inherit":24}],6:[function(require,module,exports){
 var inherit        = require('./inherit');
 var Player         = require('./Player');
 var BriefExtension = require('./BriefExtension');
@@ -678,7 +944,7 @@ BriefPlayer.prototype._onPlayableRemoved = BriefPlayer.prototype._updateDuration
 // 	this._warn('[BriefPlayer._onPlayableChanged] Changing a playable\'s property after attaching it to a player may have unwanted side effects',
 // 		'playable:', changedPlayable, 'player:', this);
 // };
-},{"./BriefExtension":3,"./Player":10,"./inherit":23}],6:[function(require,module,exports){
+},{"./BriefExtension":4,"./Player":11,"./inherit":24}],7:[function(require,module,exports){
 var BriefPlayable = require('./BriefPlayable');
 
 /**
@@ -697,7 +963,7 @@ function Delay(duration) {
 Delay.prototype = Object.create(BriefPlayable.prototype);
 Delay.prototype.constructor = Delay;
 module.exports = Delay;
-},{"./BriefPlayable":4}],7:[function(require,module,exports){
+},{"./BriefPlayable":5}],8:[function(require,module,exports){
 /**
  * DOUBLY LIST Class
  *
@@ -937,7 +1203,7 @@ DoublyList.prototype.toArray = function () {
 
 	return objects;
 };
-},{}],8:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 var BriefPlayable = require('./BriefPlayable');
 var AbstractTween   = require('./AbstractTween');
 
@@ -1125,7 +1391,7 @@ NestedTween.prototype._update = function () {
 		tween._update();
 	}
 };
-},{"./AbstractTween":2,"./BriefPlayable":4}],9:[function(require,module,exports){
+},{"./AbstractTween":3,"./BriefPlayable":5}],10:[function(require,module,exports){
 /** @class */
 function Playable() {
 	// Player component handling this playable
@@ -1362,7 +1628,7 @@ Playable.prototype._moveTo = function (time, dt) {
 // Overridable methods
 Playable.prototype._update   = function () {};
 Playable.prototype._validate = function () {};
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 var Playable     = require('./Playable');
 var DoublyList   = require('./DoublyList');
 
@@ -1609,7 +1875,7 @@ Player.prototype._update = function (dt, overflow) {
 Player.prototype._onPlayableChanged = function (/* playable */) {};
 Player.prototype._onPlayableRemoved = function (/* playable */) {};
 Player.prototype._onAllPlayablesRemoved = function () {};
-},{"./DoublyList":7,"./Playable":9}],11:[function(require,module,exports){
+},{"./DoublyList":8,"./Playable":10}],12:[function(require,module,exports){
 var BriefPlayable = require('./BriefPlayable');
 var DoublyList    = require('./DoublyList');
 
@@ -2020,7 +2286,7 @@ Recorder.prototype._update = function (dt) {
 	}
 };
 
-},{"./BriefPlayable":4,"./DoublyList":7}],12:[function(require,module,exports){
+},{"./BriefPlayable":5,"./DoublyList":8}],13:[function(require,module,exports){
 var Timeline   = require('./Timeline');
 var Delay      = require('./Delay');
 var DoublyList = require('./DoublyList');
@@ -2131,7 +2397,7 @@ Sequence.prototype._onPlayableRemoved = function (removedPlayable) {
 
 Sequence.prototype._onPlayableChanged = Sequence.prototype._reconstruct;
 
-},{"./Delay":6,"./DoublyList":7,"./Timeline":15}],13:[function(require,module,exports){
+},{"./Delay":7,"./DoublyList":8,"./Timeline":16}],14:[function(require,module,exports){
 (function (global){
 
 /**
@@ -2480,7 +2746,7 @@ var TINA = {
 module.exports = root.TINA = TINA;
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 var Tweener = require('./Tweener');
 
 /**
@@ -2526,7 +2792,7 @@ Ticker.prototype.convertToTimeUnits = function(nbTicks) {
 	return nbTicks * this.tupt;
 };
 
-},{"./Tweener":20}],15:[function(require,module,exports){
+},{"./Tweener":21}],16:[function(require,module,exports){
 var BriefPlayer = require('./BriefPlayer');
 
 /**
@@ -2568,7 +2834,7 @@ Timeline.prototype.add = function (playable, startTime) {
 	return this;
 };
 
-},{"./BriefPlayer":5}],16:[function(require,module,exports){
+},{"./BriefPlayer":6}],17:[function(require,module,exports){
 var Tweener = require('./Tweener');
 
 /**
@@ -2605,7 +2871,7 @@ Timer.prototype.convertToSeconds = function(timeUnits) {
 Timer.prototype.convertToTimeUnits = function(seconds) {
 	return seconds * this._speed * 1000;
 };
-},{"./Tweener":20}],17:[function(require,module,exports){
+},{"./Tweener":21}],18:[function(require,module,exports){
 // The file is a good representation of the constant fight between maintainability and performance
 // For performance reasons several update methods are created
 // The appropriate method should be used for tweening. The selection depends on:
@@ -2741,7 +3007,7 @@ function Transition(properties, from, to, start, duration, easing, easingParam, 
 }
 
 module.exports = Transition;
-},{}],18:[function(require,module,exports){
+},{}],19:[function(require,module,exports){
 
 // One property
 function update(object, t) {
@@ -2894,7 +3160,7 @@ function Transition(properties, from, to, start, duration, easing, easingParam, 
 }
 
 module.exports = Transition;
-},{}],19:[function(require,module,exports){
+},{}],20:[function(require,module,exports){
 var BriefPlayable = require('./BriefPlayable');
 var AbstractTween = require('./AbstractTween');
 
@@ -2937,7 +3203,7 @@ Tween.prototype.wait = function (duration) {
 	}
 	return this;
 };
-},{"./AbstractTween":2,"./BriefPlayable":4,"./inherit":23}],20:[function(require,module,exports){
+},{"./AbstractTween":3,"./BriefPlayable":5,"./inherit":24}],21:[function(require,module,exports){
 var Player = require('./Player');
 var TINA   = require('./TINA');
 
@@ -2964,7 +3230,7 @@ Tweener.prototype.useAsDefault = function () {
 	TINA.setDefaultTweener(this);
 	return this;
 };
-},{"./Player":10,"./TINA":13}],21:[function(require,module,exports){
+},{"./Player":11,"./TINA":14}],22:[function(require,module,exports){
 /**
  *
  * @file A set of ease functions
@@ -3227,7 +3493,7 @@ exports.backInOut = function (t, e) {
 	return 0.5 * (t * t * ((e + 1) * t + e)) + 1;
 };
 
-},{}],22:[function(require,module,exports){
+},{}],23:[function(require,module,exports){
 var TINA = require('./TINA.js');
 
 // TINA.CSSTween        = require('./CSSTween');
@@ -3251,7 +3517,7 @@ TINA.Tweener         = require('./Tweener');
 
 module.exports = TINA;
 
-},{"./BriefExtension":3,"./BriefPlayable":4,"./BriefPlayer":5,"./Delay":6,"./NestedTween":8,"./Playable":9,"./Player":10,"./Recorder":11,"./Sequence":12,"./TINA.js":13,"./Ticker":14,"./Timeline":15,"./Timer":16,"./Tween":19,"./Tweener":20,"./easing":21,"./interpolation":24}],23:[function(require,module,exports){
+},{"./BriefExtension":4,"./BriefPlayable":5,"./BriefPlayer":6,"./Delay":7,"./NestedTween":9,"./Playable":10,"./Player":11,"./Recorder":12,"./Sequence":13,"./TINA.js":14,"./Ticker":15,"./Timeline":16,"./Timer":17,"./Tween":20,"./Tweener":21,"./easing":22,"./interpolation":25}],24:[function(require,module,exports){
 module.exports = function (subobject, superobject) {
 	var prototypes = Object.keys(superobject.prototype);
 	for (var p = 0; p < prototypes.length; p += 1) {
@@ -3259,7 +3525,7 @@ module.exports = function (subobject, superobject) {
 		subobject.prototype[prototypeName] = superobject.prototype[prototypeName];
 	}
 };
-},{}],24:[function(require,module,exports){
+},{}],25:[function(require,module,exports){
 /**
  *
  * @file A set of interpolation functions
@@ -3751,7 +4017,320 @@ exports.simplex2d = (function () {
 		return a * (1 - t) + b * t;
 	};
 })();
-},{}],25:[function(require,module,exports){
+},{}],26:[function(require,module,exports){
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+/** Texture
+ * @author Cedric Stoquer
+ */
+
+function createCanvas(width, height) {
+	var canvas = document.createElement('canvas');
+	canvas.width  = width;
+	canvas.height = height;
+	return canvas;
+}
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+function Texture(width, height) {
+	this.canvas  = createCanvas(width, height);
+	this.ctx     = this.canvas.getContext('2d');
+	this._cursor = { i: 0, j: 0 };
+	this._paper  = 0;
+	this._pen    = 1;
+
+	this._textColumn = ~~(width  / 4);
+	this._textLine   = ~~(height / 6);
+	this._textOffset = 1; // TODO
+
+	// camera offset
+	this.camera = { x: 0, y: 0 };
+
+	this.ctx.fillStyle   = this.palette[0];
+	this.ctx.strokeStyle = this.palette[1];
+}
+module.exports = Texture;
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+Texture.prototype._isTexture = true;
+
+// FIXME better have all these private
+Texture.prototype.palette = ['#000000', '#FFFFFF']; // default palette
+Texture.prototype.spritesheet = new Texture(128, 128);
+Texture.prototype.textCharset = new Texture(128 * 3, 5 * Texture.prototype.palette.length);
+
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+Texture.prototype.resize = function (width, height) {
+	this.canvas.width  = width;
+	this.canvas.height = height;
+	this._textColumn = ~~(width  / 4);
+	this._textLine   = ~~(height / 6);
+	this._textOffset = 1; // TODO
+	this._cursor.i = 0;
+	this._cursor.j = 0;
+	this.clear();
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+// text charset generation
+
+function getTextCharcodes(texture) {
+	var canvas = texture.canvas;
+	var ctx = texture.ctx;
+	var charcodes = [];
+	for (var chr = 0; chr < 128; chr++) {
+		var imageData = ctx.getImageData(chr * 3, 0, 3, 5);
+		var pixels = imageData.data;
+		var code = 0;
+		var bit = 0;
+		for (var i = 0, len = pixels.length; i < len; i += 4) {
+			var pixel = pixels[i]; // only the first pixel is enough
+			if (pixel > 0) code += 1 << bit;
+			bit += 1;
+		}
+		charcodes.push(code);
+	}
+	return charcodes;
+}
+
+function generateTextCharset(ctx, palette) {
+	var codes = [
+		219,438,511,14016,14043,14326,14335,28032,28123,28086,28159,32704,32731,
+		32758,32767,128,146,384,402,9344,9362,9600,9618,192,210,448,466,9408,9426,
+		9664,9682,32767,0,8338,45,11962,5588,21157,29354,10,17556,5265,21973,1488,
+		5312,448,13824,5268,31599,29843,29671,31143,18925,31183,31689,18735,31727,
+		18927,1040,5136,17492,3640,5393,8359,25450,23530,31467,25166,15211,29391,
+		4815,27470,23533,29847,15142,23277,29257,23421,23403,11114,4843,26474,
+		23279,14798,9367,27501,12141,24429,23213,14829,29351,25750,17553,13459,
+		9402,28672,34,23530,31467,25166,15211,29391,4815,27470,23533,29847,15142,
+		23277,29257,23421,23403,11114,4843,26474,23279,14798,9367,27501,12141,
+		24429,23213,14829,29351,25686,9362,13587,42,21845
+	];
+
+	for (var pen = 0; pen < palette.length; pen++) {
+		ctx.fillStyle = palette[pen];
+		for (var i = 0; i < codes.length; i++) {
+			var code = codes[i];
+			for (var bit = 0; bit < 15; bit++) {
+				var x = bit % 3;
+				var y = ~~(bit / 3);
+				var pixel = (code >> bit) & 1;
+				if (pixel !== 1) continue;
+				ctx.fillRect(i * 3 + x, pen * 5 + y, 1, 1);
+			}
+		}
+	}
+	ctx.fillStyle = palette[0];
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+Texture.prototype.setPalette = function (palette) {
+	Texture.prototype.palette = palette;
+	Texture.prototype.textCharset = new Texture(128 * 3, 5 * palette.length);
+	generateTextCharset(Texture.prototype.textCharset.ctx, palette);
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+Texture.prototype.setGlobalSpritesheet = function (spritesheet) {
+	Texture.prototype.spritesheet.clear().draw(spritesheet, 0, 0);
+	return this;
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+Texture.prototype.setSpritesheet = function (spritesheet) {
+	if (!spritesheet) {
+		delete this.spritesheet;
+		return;
+	} 
+	if (this.spritesheet === Texture.prototype.spritesheet) {
+		this.spritesheet = new Texture(128, 128);
+	}
+	this.spritesheet.clear().draw(spritesheet, 0, 0);
+	return this;
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+Texture.prototype.setCamera = function (x, y) {
+	camera.x = x || 0;
+	camera.y = y || 0;
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+var PI2 = Math.PI / 2;
+
+Texture.prototype.sprite = function (sprite, x, y, flipH, flipV, rot) {
+	var sx = sprite % 16;
+	var sy = ~~(sprite / 16);
+	var ctx = this.ctx;
+
+	// add camera and round to the pixel
+	x = ~~(x + 0.5 - this.camera.x);
+	y = ~~(y + 0.5 - this.camera.y);
+
+	if (!flipH && !flipV && !rot) {
+		ctx.drawImage(this.spritesheet.canvas, sx * 8, sy * 8, 8, 8, x, y, 8, 8);
+		return this;
+	}
+	ctx.save();
+
+	if (flipH) {
+		ctx.scale(-1, 1);
+		x *= -1;
+		x -= 8;
+	}
+
+	if (flipV) {
+		ctx.scale(1, -1);
+		y *= -1
+		y -= 8;
+	}
+
+	if (rot) {
+		ctx.translate(x + 8, y);
+		ctx.rotate(PI2);
+	} else {
+		ctx.translate(x, y);
+	}
+
+	ctx.drawImage(this.spritesheet.canvas, sx * 8, sy * 8, 8, 8, 0, 0, 8, 8);
+	ctx.restore();
+	return this;
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+Texture.prototype.draw = function (img, x, y) {
+	if (img._isMap) img = img.texture.canvas;
+	if (img._isTexture) img = img.canvas;
+	this.ctx.drawImage(img, ~~(x + 0.5 - this.camera.x), ~~(y + 0.5 - this.camera.y));
+	return this;
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+Texture.prototype.clear = function () {
+	this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+	return this;
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+Texture.prototype.cls = function () {
+	this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+	this.locate(0, 0);
+	return this;
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+// colors
+
+Texture.prototype.pen = function (p) {
+	this._pen = p % this.palette.length;
+	this.ctx.strokeStyle = this.palette[this._pen];
+	return this;
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+Texture.prototype.paper = function (p) {
+	this._paper = p % this.palette.length;
+	this.ctx.fillStyle = this.palette[this._paper];
+	return this;
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+// shape
+
+Texture.prototype.rect = function (x, y, w, h) {
+	this.ctx.strokeRect(~~(x - this.camera.x) + 0.5, ~~(y - this.camera.y) + 0.5, w - 1, h - 1);
+	return this;
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+Texture.prototype.rectfill = function (x, y, w, h) {
+	this.ctx.fillRect(~~(x - this.camera.x), ~~(y - this.camera.y), w, h);
+	return this;
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+// text
+
+Texture.prototype.locate = function (i, j) {
+	this._cursor.i = ~~i;
+	this._cursor.j = ~~j;
+	return this;
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+Texture.prototype.print = function (str, x, y) {
+	if (typeof str === 'object') {
+		try {
+			str = JSON.stringify(str);
+		} catch (error) {
+			str = "[Object]";
+		}
+	} else if (typeof str !== 'string') {
+		str = str.toString();
+	}
+	if (x !== undefined) {
+		x = ~~(x + 0.5 - this.camera.x);
+		y = ~~(y + 0.5 - this.camera.y);
+		for (var i = 0; i < str.length; i++) {
+			this.ctx.drawImage(
+				this.textCharset.canvas,
+				3 * str.charCodeAt(i),
+				5 * this._pen,
+				3, 5,
+				x, y,
+				3, 5
+			);
+			x += 4;
+		}
+		return this;
+	}
+	for (var i = 0; i < str.length; i++) {
+		if (this._cursor.j > this._textLine) {
+			this.textScroll();
+		}
+		var chr = str.charCodeAt(i);
+		if (chr === 10 || chr === 13) {
+			this._cursor.i = 0;
+			this._cursor.j += 1;
+			continue;
+		}
+		this.ctx.drawImage(
+			this.textCharset.canvas,
+			3 * chr,
+			5 * this._pen,
+			3, 5,
+			this._cursor.i * 4,
+			this._cursor.j * 6 + this._textOffset,
+			3, 5
+		);
+		this._cursor.i += 1;
+		if (this._cursor.i > this._textColumn) {
+			this._cursor.i = 0;
+			this._cursor.j += 1;
+		}
+	}
+	return this;
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+Texture.prototype.println = function (str) {
+	this.print(str);
+	this.print('\n');
+	return this;
+};
+
+//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+Texture.prototype.textScroll = function (n) {
+	if (n === undefined) n = 1;
+	this._cursor.j -= n;
+	n *= 6;
+	this.ctx.drawImage(this.canvas, 0, -n);
+	this.ctx.fillRect(0, this.canvas.height - n, this.canvas.width, n + 2);
+	return this;
+};
+
+
+},{}],27:[function(require,module,exports){
 //▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 /**
  * @module loader
@@ -3948,7 +4527,7 @@ function preloadStaticAssets(cb, onEachLoad) {
 }
 exports.preloadStaticAssets = preloadStaticAssets;
 
-},{}],26:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 //▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 /** Audio Channel class.
  *
@@ -4077,7 +4656,7 @@ AudioChannel.prototype.playLoopSound = function (soundId, volume, pan, pitch) {
 	}
 };
 
-},{}],27:[function(require,module,exports){
+},{}],29:[function(require,module,exports){
 //▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 /** Sound Abstract class.
  * Implement dynamic loading / unloading mechanism.
@@ -4262,7 +4841,7 @@ ISound.prototype.stop = function (cb) {
 	return cb && cb();
 };
 
-},{}],28:[function(require,module,exports){
+},{}],30:[function(require,module,exports){
 /**
  * PRIORITY LIST Class
  *
@@ -4564,7 +5143,7 @@ OrderedList.prototype.reposition = function (node) {
 };
 
 module.exports = OrderedList;
-},{}],29:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 var inherits     = require('util').inherits;
 var ISound       = require('./ISound.js');
 var PLAY_OPTIONS = { playAudioWhenScreenIsLocked: false };
@@ -4695,7 +5274,7 @@ Sound.prototype.stop = function (cb) {
 	return cb && cb(); // TODO: fade-out
 };
 
-},{"./ISound.js":27,"util":40}],30:[function(require,module,exports){
+},{"./ISound.js":29,"util":43}],32:[function(require,module,exports){
 var inherits = require('util').inherits;
 var ISound   = require('./ISound.js');
 
@@ -5039,7 +5618,7 @@ SoundBuffered.prototype.stop = function (cb) {
 };
 
 
-},{"./ISound.js":27,"util":40}],31:[function(require,module,exports){
+},{"./ISound.js":29,"util":43}],33:[function(require,module,exports){
 //▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 /** Set of sound played in sequence each times it triggers
  *  used for animation sfx
@@ -5110,7 +5689,7 @@ SoundGroup.prototype.verifySounds = function () {
 	}
 };
 
-},{}],32:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 var AudioContext = window.AudioContext || window.webkitAudioContext;
 var OrderedList  = require('./OrderedList');
 var SoundObject  = require('./SoundBuffered.js');
@@ -5518,7 +6097,7 @@ AudioManager.prototype.createSoundGroups = function (soundGroupDefs, channelId) 
 	}
 };
 
-},{"./AudioChannel.js":26,"./ISound.js":27,"./OrderedList":28,"./Sound.js":29,"./SoundBuffered.js":30,"./SoundGroup.js":31}],33:[function(require,module,exports){
+},{"./AudioChannel.js":28,"./ISound.js":29,"./OrderedList":30,"./Sound.js":31,"./SoundBuffered.js":32,"./SoundGroup.js":33}],35:[function(require,module,exports){
 //▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 /**
  * Pixelbox main framework module
@@ -5526,25 +6105,22 @@ AudioManager.prototype.createSoundGroups = function (soundGroupDefs, channelId) 
  * @author Cedric Stoquer
  */
 
+var settings     = require('./settings.json');
 var assetLoader  = require('assetLoader');
 var AudioManager = require('audio-manager');
+var Texture      = require('Texture');
+var TINA         = require('TINA');
+var EventEmitter = require('EventEmitter');
+var Map          = require('Map');
 
-var PIXEL_SIZE    = 4;
-var SCREEN_WIDTH  = 128;
-var SCREEN_HEIGHT = 128;
-
-var PALETTE_COLORS = [
-	'#000000', '#1D2B53', '#008751', '#AB5236',
-	'#7E2553', '#5F574F', '#29ADFF', '#00E756',
-	'#FFA300', '#FF77A8', '#C2C3C7', '#83769C',
-	'#FFFF27', '#FFCCAA', '#FFF1E8', '#FF004D'
-];
 
 //▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 // built-in modules
 
-window.EventEmitter = require('EventEmitter');
-var TINA = window.TINA = require('TINA');
+window.EventEmitter = EventEmitter;
+window.Map          = Map;
+window.TINA         = TINA;
+
 window.inherits = function (Child, Parent) {
 	Child.prototype = Object.create(Parent.prototype, {
 		constructor: {
@@ -5624,27 +6200,10 @@ window.addEventListener('keyup',   function onKeyRelease(e) { keyChange(e.keyCod
 //▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 // Texture
 
-function createCanvas(w, h) {
-	var canvas = document.createElement('canvas');
-	canvas.width  = w;
-	canvas.height = h;
-	return canvas;
-}
+var currentSpritesheet = Texture.prototype.currentSpritesheet;
+var textCharset = Texture.prototype.textCharset;
 
-function Texture(w, h) {
-	this.canvas  = createCanvas(w, h);
-	this.ctx     = this.canvas.getContext('2d');
-	this._cursor = { i: 0, j: 0 };
-	this._paper  = 0;
-	this._pen    = 1;
-
-	// TODO camera offset
-
-	this.ctx.fillStyle   = PALETTE_COLORS[0];
-	this.ctx.strokeStyle = PALETTE_COLORS[1];
-}
-
-Texture.prototype._isTexture = true;
+window.Texture = Texture;
 
 window.texture = function (img) {
 	var texture = new Texture(img.width, img.height);
@@ -5652,193 +6211,37 @@ window.texture = function (img) {
 	return texture;
 }
 
-var currentSpritesheet = new Texture(128, 128);
-var textCharset = new Texture(128 * 3, 5 * PALETTE_COLORS.length);
-
-Texture.prototype.sprite = function (sprite, x, y, flipH, flipV) {
-	var sx = sprite % 16;
-	var sy = ~~(sprite / 16);
-	var ctx = this.ctx;
-	if (!flipH && !flipV) {
-		ctx.drawImage(currentSpritesheet, sx * 8, sy * 8, 8, 8, ~~x, ~~y, 8, 8);
-		return this;
-	}
-	ctx.save();
-	x = ~~x;
-	y = ~~y;
-	if (flipH) {
-		ctx.scale(-1, 1);
-		x -= 8;
-	}
-	if (flipV) {
-		ctx.scale(1, -1);
-		y -= 8;
-	}
-	ctx.translate(x, y);
-	ctx.drawImage(currentSpritesheet, sx * 8, sy * 8, 8, 8, 0, 0, 8, 8);
-	ctx.restore();
-	return this;
+window.spritesheet = function(img) {
+	return Texture.prototype.setGlobalSpritesheet(img);
 };
-
-Texture.prototype.draw = function (img, x, y) {
-	if (img._isTexture) img = img.canvas;
-	this.ctx.drawImage(img, ~~x, ~~y);
-	return this;
-};
-
-Texture.prototype.clear = function () {
-	this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-	return this;
-};
-
-Texture.prototype.cls = function () {
-	this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-	this.locate(0, 0);
-	return this;
-};
-
-//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
-// colors
-
-Texture.prototype.pen = function (p) {
-	this._pen = p % PALETTE_COLORS.length;
-	this.ctx.strokeStyle = PALETTE_COLORS[this._pen];
-	return this;
-};
-
-Texture.prototype.paper = function (p) {
-	this._paper = p % PALETTE_COLORS.length;
-	this.ctx.fillStyle = PALETTE_COLORS[this._paper];
-	return this;
-};
-
-//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
-// shape
-
-Texture.prototype.rect = function (x, y, w, h) {
-	this.ctx.strokeRect(~~x + 0.5, ~~y + 0.5, w - 1, h - 1);
-	return this;
-};
-
-Texture.prototype.rectfill = function (x, y, w, h) {
-	this.ctx.fillRect(~~x, ~~y, w, h);
-	return this;
-};
-
-//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
-// text
-
-Texture.prototype.locate = function (i, j) {
-	this._cursor.i = ~~i;
-	this._cursor.j = ~~j;
-	return this;
-};
-
-Texture.prototype.print = function (str, x, y) {
-	if (typeof str === 'object') {
-		try {
-			str = JSON.stringify(str);
-		} catch (error) {
-			str = "[Object]";
-		}
-	} else if (typeof str !== 'string') {
-		str = str.toString();
-	}
-	if (x !== undefined) {
-		x = ~~x;
-		y = ~~y;
-		for (var i = 0; i < str.length; i++) {
-			this.ctx.drawImage(
-				textCharset.canvas,
-				3 * str.charCodeAt(i),
-				5 * this._pen,
-				3, 5,
-				x, y,
-				3, 5
-			);
-			x += 4;
-		}
-		return this;
-	}
-	for (var i = 0; i < str.length; i++) {
-		if (this._cursor.j > 20) {
-			this.textScroll();
-		}
-		var chr = str.charCodeAt(i);
-		if (chr === 10 || chr === 13) {
-			this._cursor.i = 0;
-			this._cursor.j += 1;
-			continue;
-		}
-		this.ctx.drawImage(
-			textCharset.canvas,
-			3 * chr,
-			5 * this._pen,
-			3, 5,
-			this._cursor.i * 4,
-			this._cursor.j * 6 + 1,
-			3, 5
-		);
-		this._cursor.i += 1;
-		if (this._cursor.i > 32) {
-			this._cursor.i = 0;
-			this._cursor.j += 1;
-		}
-	}
-	return this;
-};
-
-Texture.prototype.println = function (str) {
-	this.print(str);
-	this.print('\n');
-	return this;
-};
-
-Texture.prototype.textScroll = function (n) {
-	if (n === undefined) n = 1;
-	this._cursor.j -= n;
-	n *= 6;
-	this.ctx.drawImage(this.canvas, 0, -n);
-	this.ctx.fillRect(0, this.canvas.height - n, this.canvas.width, n + 2);
-	return this;
-};
-
-window.Texture = Texture;
 
 //▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 // screen
 
-function createScreen() {
-	var texture = new Texture(SCREEN_WIDTH, SCREEN_HEIGHT);
+function createScreen(width, height, pixelSize) {
+	var texture = new Texture(width, height);
 	var canvas = texture.canvas;
 	document.body.appendChild(canvas);
 	var style = canvas.style;
-	style.width  = SCREEN_WIDTH  * PIXEL_SIZE + 'px';
-	style.height = SCREEN_HEIGHT * PIXEL_SIZE + 'px';
+	style.width  = width  * pixelSize[0] + 'px';
+	style.height = height * pixelSize[1] + 'px';
 	return texture;
 }
 
-var screen = window.$screen = createScreen();
+var screen = window.$screen = createScreen(settings.screen.width, settings.screen.height, settings.screen.pixelSize);
+screen.setPalette(settings.palette);
 
-window.cls      = function ()              { return screen.cls();                  };
-window.sprite   = function (s, x, y, h, v) { return screen.sprite(s, x, y, h, v);  };
-window.draw     = function (img, x, y)     { return screen.draw(img, x, y);        };
-window.rect     = function (x, y, w, h)    { return screen.rect(x, y, w, h);       };
-window.rectfill = function (x, y, w, h)    { return screen.rectfill(x, y, w, h);   };
-window.locate   = function (i, j)          { return screen.locate(i, j);           };
-window.print    = function (str, x, y)     { return screen.print(str, x, y);       };
-window.pen      = function (p)             { return screen.pen(p);                 };
-window.paper    = function (p)             { return screen.paper(p);               };
-window.println  = function (str)           { return screen.println(str);           };
-
-//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
-// sprite sheet operations
-
-window.spritesheet = function(img) {
-	// TODO: clear and draw
-	currentSpritesheet = img;
-	return currentSpritesheet;
-};
+window.cls      = function ()                 { return screen.cls();                    };
+window.sprite   = function (s, x, y, h, v, r) { return screen.sprite(s, x, y, h, v, r); };
+window.draw     = function (img, x, y)        { return screen.draw(img, x, y);          };
+window.rect     = function (x, y, w, h)       { return screen.rect(x, y, w, h);         };
+window.rectfill = function (x, y, w, h)       { return screen.rectfill(x, y, w, h);     };
+window.camera   = function (x, y)             { return screen.setCamera(x, y);          };
+window.locate   = function (i, j)             { return screen.locate(i, j);             };
+window.print    = function (str, x, y)        { return screen.print(str, x, y);         };
+window.pen      = function (p)                { return screen.pen(p);                   };
+window.paper    = function (p)                { return screen.paper(p);                 };
+window.println  = function (str)              { return screen.println(str);             };
 
 //▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 // utility functions
@@ -5864,7 +6267,7 @@ function Clock(m) {
 }
 window.Clock = Clock;
 
-Clock.prototype.tic = function(n) {
+Clock.prototype.tick = function(n) {
 	this.i += n || 1;
 	if (this.i > this.m) {
 		this.i = 0;
@@ -5872,65 +6275,7 @@ Clock.prototype.tic = function(n) {
 	}
 	return false;
 };
-
-//▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
-// text charset generation
-
-function getTextCharcodes(t) {
-	var canvas = t.canvas;
-	var ctx = t.ctx;
-	var charcodes = [];
-	for (var chr = 0; chr < 128; chr++) {
-		var imageData = ctx.getImageData(chr * 3, 0, 3, 5);
-		var pixels = imageData.data;
-		var code = 0;
-		var bit = 0;
-		for (var i = 0, len = pixels.length; i < len; i += 4) {
-			var pixel = pixels[i]; // only the first pixel is enough
-			if (pixel > 0) {
-				code += 1 << bit;
-			}
-			bit += 1;
-		}
-		charcodes.push(code);
-	}
-
-	return charcodes;
-}
-
-function generateTextCharset() {
-	var codes = [
-		219,438,511,14016,14043,14326,14335,28032,28123,28086,28159,32704,32731,
-		32758,32767,128,146,384,402,9344,9362,9600,9618,192,210,448,466,9408,9426,
-		9664,9682,32767,0,8338,45,11962,5588,21157,29354,10,17556,5265,21973,1488,
-		5312,448,13824,5268,31599,29843,29671,31143,18925,31183,31689,18735,31727,
-		18927,1040,5136,17492,3640,5393,8359,25450,23530,31467,25166,15211,29391,
-		4815,27470,23533,29847,15142,23277,29257,23421,23403,11114,4843,26474,
-		23279,14798,9367,27501,12141,24429,23213,14829,29351,25750,17553,13459,
-		9402,28672,34,23530,31467,25166,15211,29391,4815,27470,23533,29847,15142,
-		23277,29257,23421,23403,11114,4843,26474,23279,14798,9367,27501,12141,
-		24429,23213,14829,29351,25686,9362,13587,42,21845
-	];
-
-	var ctx = textCharset.ctx;
-
-	for (var pen = 0; pen < PALETTE_COLORS.length; pen++) {
-		ctx.fillStyle = PALETTE_COLORS[pen];
-		for (var i = 0; i < codes.length; i++) {
-			var code = codes[i];
-			for (var bit = 0; bit < 15; bit++) {
-				var x = bit % 3;
-				var y = ~~(bit / 3);
-				var pixel = (code >> bit) & 1;
-				if (pixel !== 1) continue;
-				ctx.fillRect(i * 3 + x, pen * 5 + y, 1, 1);
-			}
-		}
-	}
-	ctx.fillStyle = PALETTE_COLORS[0];
-}
-
-generateTextCharset();
+Clock.prototype.tic = Clock.prototype.tick; // deprecated
 
 //▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 // main
@@ -5947,7 +6292,7 @@ var requestAnimationFrame =
 
 
 function onAssetsLoaded(error, assets) {
-	paper(0).pen(14).cls();
+	paper(0).pen(1).cls();
 
 	if (error) {
 		print(error);
@@ -5955,7 +6300,14 @@ function onAssetsLoaded(error, assets) {
 	}
 
 	window.assets = assets;
+
+	// set default spritesheet
 	if (assets.spritesheet) spritesheet(assets.spritesheet);
+
+	// setup all maps
+	for (var i = 0; i < assets.maps.length; i++) {
+		assets.maps[i] = new Map().load(assets.maps[i]);
+	}
 
 	// setup TINA with a ticker
 	var ticker = new TINA.Ticker().useAsDefault();
@@ -5980,10 +6332,36 @@ function showProgress(load, current, count, percent) {
 	rectfill(39, 60, ~~(percent * 50), 4);
 }
 
-cls().paper(14).pen(14).rect(37, 58, 54, 8); // loading bar
+cls().paper(1).pen(1).rect(37, 58, 54, 8); // loading bar
 assetLoader.preloadStaticAssets(onAssetsLoaded, showProgress);
 
-},{"../src/main.js":36,"EventEmitter":1,"TINA":22,"assetLoader":25,"audio-manager":32}],34:[function(require,module,exports){
+},{"../src/main.js":39,"./settings.json":36,"EventEmitter":1,"Map":2,"TINA":23,"Texture":26,"assetLoader":27,"audio-manager":34}],36:[function(require,module,exports){
+module.exports={
+	"screen": {
+		"width": 128,
+		"height": 128,
+		"pixelSize": [4, 4]
+	},
+	"palette": [
+		"#000000",
+		"#FFF1E8",
+		"#008751",
+		"#AB5236",
+		"#7E2553",
+		"#5F574F",
+		"#29ADFF",
+		"#00E756",
+		"#FFA300",
+		"#FF77A8",
+		"#C2C3C7",
+		"#83769C",
+		"#FFFF27",
+		"#FFCCAA",
+		"#1D2B53",
+		"#FF004D"
+	]
+}
+},{}],37:[function(require,module,exports){
 function Ball() {
 	EventEmitter.call(this);
 	this.x = 0;
@@ -6035,7 +6413,7 @@ Ball.prototype.draw = function () {
 	sprite(0x90 + ~~this.frame, this.x, this.y);
 };
 
-},{}],35:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
 function Paddle() {
 	this.x = 0;
 	this.y = 108;
@@ -6061,7 +6439,19 @@ Paddle.prototype.draw = function() {
 	rectfill(this.x, this.y, this.width, this.height);
 };
 
-},{}],36:[function(require,module,exports){
+},{}],39:[function(require,module,exports){
+
+var map = getMap('test');
+var x = 0;
+exports.update = function () {
+	x += 0.1;
+	camera(x, 0);
+	cls();
+	draw(map, 0, 0);
+}
+
+return;
+
 var Ball   = require('./Ball');
 var Paddle = require('./Paddle');
 
@@ -6092,9 +6482,9 @@ Brick.prototype.hit = function () {
 
 //▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 function Map(w, h) {
-	this.width    = 0;
-	this.height   = 0;
-	this.items    = [];
+	this.width  = 0;
+	this.height = 0;
+	this.items  = [];
 	// TODO add flagMap
 	this._texture = new Texture(w * 8, h * 8);
 
@@ -6104,6 +6494,7 @@ function Map(w, h) {
 Map.prototype._init = function (w, h) {
 	this.width  = w;
 	this.height = h;
+	this.items  = [];
 
 	for (var x = 0; x < w; x++) {
 		this.items.push([]);
@@ -6254,7 +6645,7 @@ exports.update = function () {
 	paddle.draw();
 };
 
-},{"./Ball":34,"./Paddle":35}],37:[function(require,module,exports){
+},{"./Ball":37,"./Paddle":38}],40:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -6279,7 +6670,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],38:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -6372,14 +6763,14 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],39:[function(require,module,exports){
+},{}],42:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],40:[function(require,module,exports){
+},{}],43:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -6969,4 +7360,4 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":39,"_process":38,"inherits":37}]},{},[33]);
+},{"./support/isBuffer":42,"_process":41,"inherits":40}]},{},[35]);

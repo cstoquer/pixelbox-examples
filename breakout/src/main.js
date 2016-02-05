@@ -1,3 +1,15 @@
+
+var map = getMap('test');
+var x = 0;
+exports.update = function () {
+	x += 0.1;
+	camera(x, 0);
+	cls();
+	draw(map, 0, 0);
+}
+
+return;
+
 var Ball   = require('./Ball');
 var Paddle = require('./Paddle');
 
