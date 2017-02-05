@@ -1,0 +1,1 @@
+{"dat":{"cursor":null,"tilesheet":null,"maps":{"_type":"maps","maps":[{"w":6,"h":11,"name":"test1","sheet":"","data":"##|T#$#'#(#)#&#%|,#$#&#%#'#$#'#)#(#)#(#'#(#&#$#%#)#&"},{"w":6,"h":1,"name":"newLine","sheet":"","data":"#e#g#h#j|,#f"}]}},"root":"assets/","img":["cursor.png","tilesheet.png"],"snd":[]}
